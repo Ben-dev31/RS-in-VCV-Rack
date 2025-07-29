@@ -18,6 +18,14 @@
       "name": "RSModule",
       "description": "",
       "tags": []
+    },
+    {
+      "slug": "Noise",
+      "name": "Noise",
+      "description": "",
+      "tags": [
+        "RSNoise"
+      ]
     }
   ]
 }

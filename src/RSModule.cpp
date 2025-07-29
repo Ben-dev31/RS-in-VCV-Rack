@@ -91,32 +91,20 @@ struct RSModule : Module {
         configParam(REVERB_PARAM, 0.f, 1.f, 0.f, "Reverb Parameter");
     }
 
-    void process(const ProcessArgs& args) override {
-        // Lecture des entrées
-        signal = inputs[INPUT_SIGNAL].getVoltage();
-        noise = inputs[INPUT_NOISE].getVoltage();
-        dt = args.sampleTime;
-		filtred_signal = 0.1f;
-        //updateSwitches();
+    void updateSwitches() {
+        bool bistable_enabled = params[SWITCH_BISTABLE].getValue() > 0.5f;
+        bool diode1_enabled = params[SWITCH_DIODE1].getValue() > 0.5f;
+        bool diode2_enabled = params[SWITCH_DIODE2].getValue() > 0.5f;
 
-        //filtred_signal = getFilteredSignal();
-
-        outputs[OUTPUT].setVoltage(filtred_signal);
-
-        // Mise à jour du buffer pour affichage
-        buffer_y.push_back(filtred_signal);
-        buffer_x.push_back(signal + noise);
-        if (buffer_y.size() > bufferSize) {
-            buffer_y.erase(buffer_y.begin());
-            buffer_x.erase(buffer_x.begin());
+        if (bistable_enabled) {
+            current_filter = 3;
+        } else if (diode1_enabled) {
+            current_filter = 1;
+        } else if (diode2_enabled) {
+            current_filter = 2;
         }
-
-        // Mise à jour des lumières
-        lights[BISTABLE_LIGHT].setBrightness((current_filter == 3) ? 1.f : 0.f);
-        lights[DIODE1_LIGHT].setBrightness((current_filter == 1) ? 1.f : 0.f);	
-        lights[DIODE2_LIGHT].setBrightness((current_filter == 2) ? 1.f : 0.f);
     }
-
+    // Fonction de filtrage
     float getFilteredSignal() {
         int N = (int)params[DYNAMIC_WHEEL_NUM].getValue();
         float XB = params[DYNAMIC_WHEEL_POS].getValue();
@@ -143,39 +131,35 @@ struct RSModule : Module {
         return filtred_signal;
     }
 
-    void onReset() override {
-        params[TIME_PARAM].setValue(18.f);
-        params[GAIN_PARAM].setValue(10.f);
-        params[STATIC_THRESHOLD].setValue(1.f);
-        params[STATIC_MOD_PARAM].setValue(0.f);
-        params[DYNAMIC_WHEEL_NUM].setValue(1.f);
-        params[DYNAMIC_SYSTEM_TIME].setValue(10.f);
-        params[DYNAMIC_SYSTEM_TIME_MOD_PARAM].setValue(1.f);
-        params[DYNAMIC_WHEEL_POS].setValue(1.f);
-        params[DYNAMIC_WHEEL_POS_MOD_PARAM].setValue(0.f);
-        params[REVERB_PARAM].setValue(0.f);
+    void process(const ProcessArgs& args) override {
+        // Lecture des entrées
+        signal = inputs[INPUT_SIGNAL].getVoltage();
+        noise = inputs[INPUT_NOISE].getVoltage();
+        dt = args.sampleTime;
+		filtred_signal = 0.1f;
 
-        current_filter = 0;
-        buffer_y.clear();
-        buffer_x.clear();
-        xi = -1.f;
-    }
+        updateSwitches();
 
-    void updateSwitches() {
-        bool bistable_enabled = params[SWITCH_BISTABLE].getValue() > 0.5f;
-        bool diode1_enabled = params[SWITCH_DIODE1].getValue() > 0.5f;
-        bool diode2_enabled = params[SWITCH_DIODE2].getValue() > 0.5f;
+        filtred_signal = getFilteredSignal();
 
-        if (bistable_enabled) {
-            current_filter = 3;
-        } else if (diode1_enabled) {
-            current_filter = 1;
-        } else if (diode2_enabled) {
-            current_filter = 2;
-        } else {
-            current_filter = 0;
+        outputs[OUTPUT].setVoltage(filtred_signal);
+
+        // Mise à jour du buffer pour affichage
+        buffer_y.push_back(filtred_signal);
+        buffer_x.push_back(signal + noise);
+        if (buffer_y.size() > bufferSize) {
+            buffer_y.erase(buffer_y.begin());
+            buffer_x.erase(buffer_x.begin());
         }
+
+        // Mise à jour des lumières
+        lights[BISTABLE_LIGHT].setBrightness(current_filter == 3 ? 1.f : 0.f);
+        lights[DIODE1_LIGHT].setBrightness(current_filter == 1 ? 1.f : 0.f);	
+        lights[DIODE2_LIGHT].setBrightness(current_filter == 2 ? 1.f : 0.f);
     }
+
+
+    
 };
 
 // === Affichage graphique du potentiel ===
@@ -214,6 +198,7 @@ struct GraphDisplay : Widget {
         float gain = module->params[RSModule::GAIN_PARAM].getValue();
         float time = module->params[RSModule::TIME_PARAM].getValue();
         bool diode_enabled = module->params[RSModule::SWITCH_DIODE1].getValue() > 0.5f;
+        int Num = (int)module->params[RSModule::DYNAMIC_WHEEL_NUM].getValue();
 
         float W = size.x;
         float H = size.y;
@@ -234,7 +219,7 @@ struct GraphDisplay : Widget {
         nvgStrokeWidth(args.vg, 1.5);
 
         int N = 1000;
-        float domain = diode_enabled ? threshold + 5 : XB + 5;
+        float domain = diode_enabled ? threshold + 5 : 2*Num*XB + 5;
         float x1, x2, y1, y2;
 
         for (int i = 0; i < N; ++i) {
