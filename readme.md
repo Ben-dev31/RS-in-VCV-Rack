@@ -127,8 +127,8 @@ MyPlugin/
   extern Model* modelMyModule;
   ```
 
+- Remplacer `MyModule` par le nom de votre Module.
 ---
-
 ### Ajouter un fichier SVG
 
 - Placer le fichier SVG dans le dossier `res/`.

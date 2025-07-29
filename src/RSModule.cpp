@@ -77,18 +77,32 @@ struct RSModule : Module {
         config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 
         configParam(TIME_PARAM, 2.f, 100.f, 18.f, "Time scaling");
-        configParam(GAIN_PARAM, 0.1f, 20.f, 10.f, "Gain");
+        configParam(GAIN_PARAM, 10.f, 50.f, 15.f, "Gain");
         configParam(STATIC_THRESHOLD, 0.f, 10.f, 1.f, "Static Threshold");
         configInput(STATIC_MOD_INPUT, "Static Modulation Input");
         configParam(STATIC_MOD_PARAM, 0.f, 1.f, 0.f, "Static Modulation Parameter");
         configParam(DYNAMIC_WHEEL_NUM, 1.f, 16.f, 1.f, "Dynamic Wheel Number");
         configParam(DYNAMIC_SYSTEM_TIME, 0.1f, 1000.f, 10.f, "Dynamic System Time");
         configInput(DYNAMIC_SYSTEM_TIME_MOD_INPUT, "Dynamic System Time Modulation Input");
-        configParam(DYNAMIC_SYSTEM_TIME_MOD_PARAM, 0.f, 10.f, 1.f, "Dynamic System Time Modulation Parameter");
+        configParam(DYNAMIC_SYSTEM_TIME_MOD_PARAM, 0.f, 1.f, 0.f, "Dynamic System Time Modulation Parameter");
         configParam(DYNAMIC_WHEEL_POS, 0.1f, 10.f, 1.f, "Dynamic Wheel Position");
         configInput(DYNAMIC_WHEEL_POS_MOD_INPUT, "Dynamic Wheel Position Modulation Input");
         configParam(DYNAMIC_WHEEL_POS_MOD_PARAM, 0.f, 1.f, 0.f, "Dynamic Wheel Position Modulation Parameter");
         configParam(REVERB_PARAM, 0.f, 1.f, 0.f, "Reverb Parameter");
+        configParam(SWITCH_BISTABLE, 0.f, 1.f, 0.f, "Bistable Switch");
+        configParam(SWITCH_DIODE1, 0.f, 1.f, 0.f, "Diode 1 Switch");
+        configParam(SWITCH_DIODE2, 0.f, 1.f, 0.f, "Diode 2 Switch");
+    }
+
+    void onReset() override {
+        signal = 0.f;
+        noise = 0.f;
+        filtred_signal = 0.f;
+        XB = 1.f;
+        tau = 1.f / 300.f;
+        xi = -1.f;
+        buffer_y.clear();
+        buffer_x.clear();
     }
 
     void updateSwitches() {
@@ -113,13 +127,28 @@ struct RSModule : Module {
         float noise = inputs[INPUT_NOISE].getVoltage();
         float tau = 1.f / params[DYNAMIC_SYSTEM_TIME].getValue();
 
+        if (inputs[STATIC_MOD_INPUT].isConnected()) {
+            threshold += inputs[STATIC_MOD_INPUT].getVoltage() * params[STATIC_MOD_PARAM].getValue();
+        }
+        if (inputs[DYNAMIC_WHEEL_POS_MOD_INPUT].isConnected()) {
+            XB += inputs[DYNAMIC_WHEEL_POS_MOD_INPUT].getVoltage() * params[DYNAMIC_WHEEL_POS_MOD_PARAM].getValue();
+        }
+        if (inputs[DYNAMIC_SYSTEM_TIME_MOD_INPUT].isConnected()) {
+           if(params[DYNAMIC_SYSTEM_TIME_MOD_PARAM].getValue() > 1.f)
+               tau +=  params[DYNAMIC_SYSTEM_TIME_MOD_PARAM].getValue();
+            else{
+                tau += fabs(inputs[DYNAMIC_SYSTEM_TIME_MOD_INPUT].getVoltage()) * params[DYNAMIC_SYSTEM_TIME_MOD_PARAM].getValue();
+            }
+            
+        }
+
         float dt = this->dt;
         float filtred_signal = 0.f;
 
         if (N < 1) N = 1;
 
         if (current_filter == 0) {
-            filtred_signal = signal + noise;
+            filtred_signal = 0.f; // Pas de filtrage
         } else if (current_filter == 1) {
             filtred_signal = diode(signal + noise, threshold);
         } else if (current_filter == 2) {
@@ -136,11 +165,20 @@ struct RSModule : Module {
         signal = inputs[INPUT_SIGNAL].getVoltage();
         noise = inputs[INPUT_NOISE].getVoltage();
         dt = args.sampleTime;
-		filtred_signal = 0.1f;
-
+        float k = filtred_signal;
         updateSwitches();
 
         filtred_signal = getFilteredSignal();
+
+        if(filtred_signal > 10.f) {
+            filtred_signal = 10.f; // Limite supérieure
+        } else if (filtred_signal < -10.f) {
+            filtred_signal = -10.f; // Limite inférieure
+        }
+
+        // Application du gain
+        float a = params[REVERB_PARAM].getValue();
+        filtred_signal  = a*k + filtred_signal;
 
         outputs[OUTPUT].setVoltage(filtred_signal);
 
@@ -242,7 +280,7 @@ struct GraphDisplay : Widget {
         nvgStroke(args.vg);
 
         // Cercle pour la position max
-        float cx = Max(module->buffer_y);
+        float cx = diode_enabled? Max(module->buffer_x): Max(module->buffer_y);
         float cy = getFiltreProfil(cx);
 
         cx = x_center + cx * time;
