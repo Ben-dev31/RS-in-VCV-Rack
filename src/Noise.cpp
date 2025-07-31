@@ -135,7 +135,7 @@ struct Noise : Module {
 
 	Noise() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
-		configParam(AMPL_PARAM, 1.0f, 5.0f, 0.5f, "Amplitude");
+		configParam(AMPL_PARAM, .0f, 5.0f, 0.5f, "Amplitude");
 		configParam(PERLIN_FREQ_PARAM, 0.1f, 300.0f, 10.0f, "Perlin Frequency");	
 		configOutput(PERLIN, "Perlin Noise");
 		configOutput(VELVET, "Velvet Noise");

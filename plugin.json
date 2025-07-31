@@ -4,10 +4,10 @@
   "version": "2.0.0",
   "license": "proprietary",
   "brand": "RSPlugin",
-  "author": "",
+  "author": "UA",
   "authorEmail": "",
   "authorUrl": "",
-  "pluginUrl": "",
+  "pluginUrl": "https://github.com/Ben-dev31/RS-in-VCV-Rack",
   "manualUrl": "",
   "sourceUrl": "",
   "donateUrl": "",
@@ -16,16 +16,22 @@
     {
       "slug": "RSModule",
       "name": "RSModule",
-      "description": "",
-      "tags": []
+      "description": "Module that exploits the phenomenon of stochastic resonance",
+      "tags": ["RS"]
     },
     {
       "slug": "Noise",
       "name": "Noise",
-      "description": "",
+      "description": "Noise generator",
       "tags": [
-        "RSNoise"
+        "RSNoise","RS"
       ]
+    },
+    {
+      "slug": "Compressor",
+      "name": "Compressor",
+      "description": "Module to compresse signal",
+      "tags": ["RS","Compressor"]
     }
   ]
 }

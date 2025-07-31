@@ -2,6 +2,7 @@
 #include "plugin.hpp"
 #include <cmath>
 #include <vector>
+#include <iostream>
 #include "filtres.hpp"
 
 // === Fonctions auxiliaires ===
@@ -77,7 +78,7 @@ struct RSModule : Module {
         config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 
         configParam(TIME_PARAM, 2.f, 100.f, 18.f, "Time scaling");
-        configParam(GAIN_PARAM, 10.f, 50.f, 15.f, "Gain");
+        configParam(GAIN_PARAM, 10.f, 100.f, 20.f, "Gain");
         configParam(STATIC_THRESHOLD, 0.f, 10.f, 1.f, "Static Threshold");
         configInput(STATIC_MOD_INPUT, "Static Modulation Input");
         configParam(STATIC_MOD_PARAM, 0.f, 1.f, 0.f, "Static Modulation Parameter");
@@ -103,6 +104,7 @@ struct RSModule : Module {
         xi = -1.f;
         buffer_y.clear();
         buffer_x.clear();
+
     }
 
     void updateSwitches() {
@@ -145,6 +147,9 @@ struct RSModule : Module {
         float dt = this->dt;
         float filtred_signal = 0.f;
 
+        // Vérification des valeurs
+        //std::cout<< "dt: "<< dt << std::endl;
+
         if (N < 1) N = 1;
 
         if (current_filter == 0) {
@@ -170,11 +175,13 @@ struct RSModule : Module {
 
         filtred_signal = getFilteredSignal();
 
+        
         if(filtred_signal > 10.f) {
             filtred_signal = 10.f; // Limite supérieure
         } else if (filtred_signal < -10.f) {
             filtred_signal = -10.f; // Limite inférieure
         }
+        
 
         // Application du gain
         float a = params[REVERB_PARAM].getValue();
@@ -235,7 +242,6 @@ struct GraphDisplay : Widget {
         float XB = module->params[RSModule::DYNAMIC_WHEEL_POS].getValue();
         float gain = module->params[RSModule::GAIN_PARAM].getValue();
         float time = module->params[RSModule::TIME_PARAM].getValue();
-        bool diode_enabled = module->params[RSModule::SWITCH_DIODE1].getValue() > 0.5f;
         int Num = (int)module->params[RSModule::DYNAMIC_WHEEL_NUM].getValue();
 
         float W = size.x;
@@ -257,7 +263,7 @@ struct GraphDisplay : Widget {
         nvgStrokeWidth(args.vg, 1.5);
 
         int N = 1000;
-        float domain = diode_enabled ? threshold + 5 : 2*Num*XB + 5;
+        float domain = (module->current_filter != 3) ? threshold + 5 : 2*Num*XB + 5;
         float x1, x2, y1, y2;
 
         for (int i = 0; i < N; ++i) {
@@ -280,9 +286,14 @@ struct GraphDisplay : Widget {
         nvgStroke(args.vg);
 
         // Cercle pour la position max
-        float cx = diode_enabled? Max(module->buffer_x): Max(module->buffer_y);
-        float cy = getFiltreProfil(cx);
+        bool bistable_enabled = (module->current_filter == 3);
+        float cx = bistable_enabled? Max(module->buffer_y): Max(module->buffer_x);
 
+        //std::cout <<bistable_enabled<< " cx: " << cx << "   bx: "<<Max(module->buffer_x)<<"  by: "<<Max(module->buffer_y)<< std::endl;
+
+       
+        float cy = getFiltreProfil(cx);
+       
         cx = x_center + cx * time;
         cy = y_center - cy * gain;
 
