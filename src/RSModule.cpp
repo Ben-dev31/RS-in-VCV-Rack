@@ -31,6 +31,23 @@ struct RSModule : Module {
     float dt = 0.01f;
     int current_filter = 0; // 1: Diode, 2: Diode2, 3: Bistable
 
+    int current_wheel_num = 1; // Nombre de roues dynamiques
+
+    float noteTime = 0.f; // Temps pour le bruit Perlin
+    float noteMaxTime = 1.f; // Temps maximum pour une note
+
+    bool pause = false; // Pause pour le module
+    float pauseTime = 0.2f; // Temps de pause
+
+    std::vector<float> WheelsPosition;
+    // MIDI note list 
+    std::vector<int> midiNotes = {79, 81,64, 65, 83, 84, 86, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77 };
+
+    //MIDI note -> voltage conversion
+    float midiToVolts(int note) {
+        return 5.f * (note - 60) / 12.f;
+    }
+
     std::vector<float> buffer_y;
     std::vector<float> buffer_x;
     const size_t bufferSize = 512;
@@ -59,11 +76,14 @@ struct RSModule : Module {
         STATIC_MOD_INPUT,
         DYNAMIC_WHEEL_POS_MOD_INPUT,
         DYNAMIC_SYSTEM_TIME_MOD_INPUT,
+        INPUT_GATE,
         INPUTS_LEN
     };
 
     enum OutputId {
         OUTPUT,
+        GATE_OUTPUT,
+        VOCT_OUTPUT,
         OUTPUTS_LEN
     };
 
@@ -93,6 +113,13 @@ struct RSModule : Module {
         configParam(SWITCH_BISTABLE, 0.f, 1.f, 0.f, "Bistable Switch");
         configParam(SWITCH_DIODE1, 0.f, 1.f, 0.f, "Diode 1 Switch");
         configParam(SWITCH_DIODE2, 0.f, 1.f, 0.f, "Diode 2 Switch");
+        configOutput(GATE_OUTPUT, "Gate Output");
+        configOutput(VOCT_OUTPUT, "V/oct Output");
+
+        configInput(INPUT_NOISE, "Noise Input");
+        configInput(INPUT_SIGNAL, "Signal Input");
+        configInput(INPUT_GATE, "Gate Modulation Input");
+
     }
 
     void onReset() override {
@@ -104,6 +131,7 @@ struct RSModule : Module {
         xi = -1.f;
         buffer_y.clear();
         buffer_x.clear();
+        setWheelsPositions();
 
     }
 
@@ -165,29 +193,84 @@ struct RSModule : Module {
         return filtred_signal;
     }
 
+    // wheels positions 
+    void setWheelsPositions() {
+        int N = (int)params[DYNAMIC_WHEEL_NUM].getValue();
+        float XB = params[DYNAMIC_WHEEL_POS].getValue();
+        float L = 2.0f * XB;
+        WheelsPosition.resize(N+1);
+
+        std::vector<float> x0_list(N);
+        for (int i = 0; i < N; ++i)
+            WheelsPosition[i] = (i - (N - 1) / 2.0f) * L;
+       
+    }
+    // wheel number
+    int getCurrentWheelNum(float v) {
+        float XB = params[DYNAMIC_WHEEL_POS].getValue();
+        float min_diff = std::numeric_limits<float>::max();
+
+        for (int i = 0; i < (int)WheelsPosition.size(); ++i) {
+            float diff = fabs(WheelsPosition[i] - v);
+            if (diff <= 2.f * XB && diff < min_diff) {
+                min_diff = diff;
+                return i;
+            }
+        }
+        return 0;
+    }
+       
+
     void process(const ProcessArgs& args) override {
         // Lecture des entrées
         signal = inputs[INPUT_SIGNAL].getVoltage();
         noise = inputs[INPUT_NOISE].getVoltage();
         dt = args.sampleTime;
+
+        noteTime += dt;
         float k = filtred_signal;
+        float v_oct = 0.f;
         updateSwitches();
+        setWheelsPositions();
 
         filtred_signal = getFilteredSignal();
 
         
-        if(filtred_signal > 10.f) {
-            filtred_signal = 10.f; // Limite supérieure
-        } else if (filtred_signal < -10.f) {
-            filtred_signal = -10.f; // Limite inférieure
+        if(filtred_signal > 5.f) {
+            filtred_signal = 5.f; // Limite supérieure
+        } else if (filtred_signal < -5.f) {
+            filtred_signal = -5.f; // Limite inférieure
         }
         
+        if(pause && pauseTime) {
+            noteTime = 0.f; // Réinitialisation du temps de note
+            pause = false; // Reprise du module
+        }
 
         // Application du gain
         float a = params[REVERB_PARAM].getValue();
         filtred_signal  = a*k + filtred_signal;
 
         outputs[OUTPUT].setVoltage(filtred_signal);
+
+        if(noteTime >= noteMaxTime) {
+            
+            outputs[GATE_OUTPUT].setVoltage(0.0f);
+
+            current_wheel_num = getCurrentWheelNum(filtred_signal); // Changement de note
+            pause = true; // Mise en pause du module
+        } else if(!pause) {
+            
+            v_oct = midiToVolts(midiNotes[current_wheel_num]);
+            v_oct = a* v_oct + v_oct; // Application du gain au signal de sortie
+            
+            outputs[VOCT_OUTPUT].setVoltage(v_oct);
+            outputs[GATE_OUTPUT].setVoltage(1.f); // Envoi d'un signal de gate
+
+        }
+
+
+
 
         // Mise à jour du buffer pour affichage
         buffer_y.push_back(filtred_signal);
@@ -312,7 +395,13 @@ struct GraphDisplay : Widget {
 struct RSModuleWidget : ModuleWidget {
     RSModuleWidget(RSModule* module) {
         setModule(module);
-        setPanel(createPanel(asset::plugin(pluginInstance, "res/RSModule.svg")));
+        setPanel(createPanel(
+            asset::plugin(pluginInstance, "res/RSModule-dark.svg"),
+            // Si vous avez une version claire, vous pouvez l'utiliser comme suit :
+            // 
+            asset::plugin(pluginInstance, "res/RSModule.svg")
+            
+        ));
 
         // Vis de fixation
         addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
@@ -321,10 +410,10 @@ struct RSModuleWidget : ModuleWidget {
         addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
         // Affichage du graphe du potentiel
-        addChild(new GraphDisplay(module, mm2px(Vec(0.1, 10.0)), mm2px(Vec(101, 41))));
+        addChild(new GraphDisplay(module, mm2px(Vec(0.1, 10.0)), mm2px(Vec(106.125, 41))));
         // Contrôles du graphe
-        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(7.92, 58.78)), module, RSModule::TIME_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(21.92, 58.78)), module, RSModule::GAIN_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(7.92, 58.4675)), module, RSModule::TIME_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(21.92, 58.4675)), module, RSModule::GAIN_PARAM));
 
         // Boutons de contrôle
         addParam(createParamCentered<LEDButton>(mm2px(Vec(8.1995, 71.0915)), module, RSModule::SWITCH_DIODE1));
@@ -347,14 +436,17 @@ struct RSModuleWidget : ModuleWidget {
         addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(94.201, 69.305)), module, RSModule::DYNAMIC_WHEEL_POS));
         addInput(createInputCentered<PJ301MPort>(mm2px(Vec(94.201, 84.062)), module, RSModule::DYNAMIC_WHEEL_POS_MOD_INPUT));
         addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(94.201, 95.245)), module, RSModule::DYNAMIC_WHEEL_POS_MOD_PARAM));
-        addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(72.585, 104.8)), module, RSModule::REVERB_PARAM));
+        addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(72.585, 91.441)), module, RSModule::REVERB_PARAM));
 
         // Entrées
         addInput(createInputCentered<PJ301MPort>(mm2px(Vec(7.36, 114.64)), module, RSModule::INPUT_NOISE));
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(43.992, 114.64)), module, RSModule::INPUT_SIGNAL));
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(26.4375, 114.64)), module, RSModule::INPUT_SIGNAL));
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(43.5585, 114.64)), module, RSModule::INPUT_GATE));
 
         // Sortie
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(84.472, 114.64)), module, RSModule::OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(55.8495, 114.64)), module, RSModule::GATE_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(79.0685, 114.64)), module, RSModule::OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(97.8245, 114.64)), module, RSModule::VOCT_OUTPUT));
     }
 };
 
