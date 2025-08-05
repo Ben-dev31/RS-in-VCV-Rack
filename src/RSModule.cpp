@@ -32,16 +32,17 @@ struct RSModule : Module {
     int current_filter = 0; // 1: Diode, 2: Diode2, 3: Bistable
 
     int current_wheel_num = 1; // Nombre de roues dynamiques
-
-    float noteTime = 0.f; // Temps pour le bruit Perlin
-    float noteMaxTime = 1.f; // Temps maximum pour une note
-
-    bool pause = false; // Pause pour le module
-    float pauseTime = 0.2f; // Temps de pause
+    float delayBuffer[44100];
+    int delayIndex = 0;
+    
+    float time = 0.f;
+    float lastNoteTime = 0.2f;
+    float noteInterval = .1f; // Intervalle entre les notes
+    int closestWell = 0; // Index de la roue la plus proche
 
     std::vector<float> WheelsPosition;
     // MIDI note list 
-    std::vector<int> midiNotes = {79, 81,64, 65, 83, 84, 86, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77 };
+    std::vector<int> midiNotes = {60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77 };
 
     //MIDI note -> voltage conversion
     float midiToVolts(int note) {
@@ -63,7 +64,7 @@ struct RSModule : Module {
         DYNAMIC_SYSTEM_TIME_MOD_PARAM,
         DYNAMIC_WHEEL_POS,
         DYNAMIC_WHEEL_POS_MOD_PARAM,
-        REVERB_PARAM,
+        NOTE_RATE,
         SWITCH_BISTABLE,
         SWITCH_DIODE1,
         SWITCH_DIODE2,
@@ -109,7 +110,7 @@ struct RSModule : Module {
         configParam(DYNAMIC_WHEEL_POS, 0.1f, 10.f, 1.f, "Dynamic Wheel Position");
         configInput(DYNAMIC_WHEEL_POS_MOD_INPUT, "Dynamic Wheel Position Modulation Input");
         configParam(DYNAMIC_WHEEL_POS_MOD_PARAM, 0.f, 1.f, 0.f, "Dynamic Wheel Position Modulation Parameter");
-        configParam(REVERB_PARAM, 0.f, 1.f, 0.f, "Reverb Parameter");
+        configParam(NOTE_RATE, 0.f, 1.f, 0.2f, "Gate Frequency Parameter");
         configParam(SWITCH_BISTABLE, 0.f, 1.f, 0.f, "Bistable Switch");
         configParam(SWITCH_DIODE1, 0.f, 1.f, 0.f, "Diode 1 Switch");
         configParam(SWITCH_DIODE2, 0.f, 1.f, 0.f, "Diode 2 Switch");
@@ -174,6 +175,7 @@ struct RSModule : Module {
 
         float dt = this->dt;
         float filtred_signal = 0.f;
+        float xi = this->xi; // État interne du filtre
 
         // Vérification des valeurs
         //std::cout<< "dt: "<< dt << std::endl;
@@ -225,10 +227,13 @@ struct RSModule : Module {
         // Lecture des entrées
         signal = inputs[INPUT_SIGNAL].getVoltage();
         noise = inputs[INPUT_NOISE].getVoltage();
+
+        noteInterval = params[NOTE_RATE].getValue();
         dt = args.sampleTime;
 
-        noteTime += dt;
-        float k = filtred_signal;
+        time += dt; // Mise à jour du temps écoulé
+
+     
         float v_oct = 0.f;
         updateSwitches();
         setWheelsPositions();
@@ -242,35 +247,27 @@ struct RSModule : Module {
             filtred_signal = -5.f; // Limite inférieure
         }
         
-        if(pause && pauseTime) {
-            noteTime = 0.f; // Réinitialisation du temps de note
-            pause = false; // Reprise du module
-        }
+        if(current_filter == 3){
 
-        // Application du gain
-        float a = params[REVERB_PARAM].getValue();
-        filtred_signal  = a*k + filtred_signal;
+            if((time - lastNoteTime) >= noteInterval){
+                current_wheel_num = getCurrentWheelNum(filtred_signal);
+                closestWell = current_wheel_num;
+                lastNoteTime = time;
+                outputs[GATE_OUTPUT].setVoltage(0.f);
+                
+            }else{
+                outputs[GATE_OUTPUT].setVoltage(10.f);
+            }
+
+       
+        
+        
+            v_oct = midiToVolts(midiNotes[closestWell]);
+            outputs[VOCT_OUTPUT].setVoltage(v_oct);
+        }
+        
 
         outputs[OUTPUT].setVoltage(filtred_signal);
-
-        if(noteTime >= noteMaxTime) {
-            
-            outputs[GATE_OUTPUT].setVoltage(0.0f);
-
-            current_wheel_num = getCurrentWheelNum(filtred_signal); // Changement de note
-            pause = true; // Mise en pause du module
-        } else if(!pause) {
-            
-            v_oct = midiToVolts(midiNotes[current_wheel_num]);
-            v_oct = a* v_oct + v_oct; // Application du gain au signal de sortie
-            
-            outputs[VOCT_OUTPUT].setVoltage(v_oct);
-            outputs[GATE_OUTPUT].setVoltage(1.f); // Envoi d'un signal de gate
-
-        }
-
-
-
 
         // Mise à jour du buffer pour affichage
         buffer_y.push_back(filtred_signal);
@@ -280,12 +277,16 @@ struct RSModule : Module {
             buffer_x.erase(buffer_x.begin());
         }
 
+        if(current_filter == 3 ){
+            xi = filtred_signal; // Mise à jour de l'état interne pour le filtre bistable
+        }
         // Mise à jour des lumières
         lights[BISTABLE_LIGHT].setBrightness(current_filter == 3 ? 1.f : 0.f);
         lights[DIODE1_LIGHT].setBrightness(current_filter == 1 ? 1.f : 0.f);	
         lights[DIODE2_LIGHT].setBrightness(current_filter == 2 ? 1.f : 0.f);
     }
 
+ 
 
     
 };
@@ -436,12 +437,11 @@ struct RSModuleWidget : ModuleWidget {
         addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(94.201, 69.305)), module, RSModule::DYNAMIC_WHEEL_POS));
         addInput(createInputCentered<PJ301MPort>(mm2px(Vec(94.201, 84.062)), module, RSModule::DYNAMIC_WHEEL_POS_MOD_INPUT));
         addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(94.201, 95.245)), module, RSModule::DYNAMIC_WHEEL_POS_MOD_PARAM));
-        addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(72.585, 91.441)), module, RSModule::REVERB_PARAM));
+        addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(72.585, 91.441)), module, RSModule::NOTE_RATE));
 
         // Entrées
         addInput(createInputCentered<PJ301MPort>(mm2px(Vec(7.36, 114.64)), module, RSModule::INPUT_NOISE));
         addInput(createInputCentered<PJ301MPort>(mm2px(Vec(26.4375, 114.64)), module, RSModule::INPUT_SIGNAL));
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(43.5585, 114.64)), module, RSModule::INPUT_GATE));
 
         // Sortie
         addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(55.8495, 114.64)), module, RSModule::GATE_OUTPUT));
