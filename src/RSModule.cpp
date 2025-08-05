@@ -31,7 +31,7 @@ struct RSModule : Module {
     float dt = 0.01f;
     int current_filter = 0; // 1: Diode, 2: Diode2, 3: Bistable
 
-    int current_wheel_num = 1; // Nombre de roues dynamiques
+    int current_well_num = 1; // Numéro de puits 
     float delayBuffer[44100];
     int delayIndex = 0;
     
@@ -40,7 +40,7 @@ struct RSModule : Module {
     float noteInterval = .1f; // Intervalle entre les notes
     int closestWell = 0; // Index de la roue la plus proche
 
-    std::vector<float> WheelsPosition;
+    std::vector<float> wellsPosition;
     // MIDI note list 
     std::vector<int> midiNotes = {60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77 };
 
@@ -59,11 +59,11 @@ struct RSModule : Module {
         GAIN_PARAM,
         STATIC_THRESHOLD,
         STATIC_MOD_PARAM,
-        DYNAMIC_WHEEL_NUM,
+        DYNAMIC_well_NUM,
         DYNAMIC_SYSTEM_TIME,
         DYNAMIC_SYSTEM_TIME_MOD_PARAM,
-        DYNAMIC_WHEEL_POS,
-        DYNAMIC_WHEEL_POS_MOD_PARAM,
+        DYNAMIC_well_POS,
+        DYNAMIC_well_POS_MOD_PARAM,
         NOTE_RATE,
         SWITCH_BISTABLE,
         SWITCH_DIODE1,
@@ -75,7 +75,7 @@ struct RSModule : Module {
         INPUT_NOISE,
         INPUT_SIGNAL,
         STATIC_MOD_INPUT,
-        DYNAMIC_WHEEL_POS_MOD_INPUT,
+        DYNAMIC_well_POS_MOD_INPUT,
         DYNAMIC_SYSTEM_TIME_MOD_INPUT,
         INPUT_GATE,
         INPUTS_LEN
@@ -103,13 +103,13 @@ struct RSModule : Module {
         configParam(STATIC_THRESHOLD, 0.f, 10.f, 1.f, "Static Threshold");
         configInput(STATIC_MOD_INPUT, "Static Modulation Input");
         configParam(STATIC_MOD_PARAM, 0.f, 1.f, 0.f, "Static Modulation Parameter");
-        configParam(DYNAMIC_WHEEL_NUM, 1.f, 16.f, 1.f, "Dynamic Wheel Number");
+        configParam(DYNAMIC_well_NUM, 1.f, 16.f, 1.f, "Dynamic well Number");
         configParam(DYNAMIC_SYSTEM_TIME, 0.1f, 1000.f, 10.f, "Dynamic System Time");
         configInput(DYNAMIC_SYSTEM_TIME_MOD_INPUT, "Dynamic System Time Modulation Input");
         configParam(DYNAMIC_SYSTEM_TIME_MOD_PARAM, 0.f, 1.f, 0.f, "Dynamic System Time Modulation Parameter");
-        configParam(DYNAMIC_WHEEL_POS, 0.1f, 10.f, 1.f, "Dynamic Wheel Position");
-        configInput(DYNAMIC_WHEEL_POS_MOD_INPUT, "Dynamic Wheel Position Modulation Input");
-        configParam(DYNAMIC_WHEEL_POS_MOD_PARAM, 0.f, 1.f, 0.f, "Dynamic Wheel Position Modulation Parameter");
+        configParam(DYNAMIC_well_POS, 0.1f, 10.f, 1.f, "Dynamic well Position");
+        configInput(DYNAMIC_well_POS_MOD_INPUT, "Dynamic well Position Modulation Input");
+        configParam(DYNAMIC_well_POS_MOD_PARAM, 0.f, 1.f, 0.f, "Dynamic well Position Modulation Parameter");
         configParam(NOTE_RATE, 0.f, 1.f, 0.2f, "Gate Frequency Parameter");
         configParam(SWITCH_BISTABLE, 0.f, 1.f, 0.f, "Bistable Switch");
         configParam(SWITCH_DIODE1, 0.f, 1.f, 0.f, "Diode 1 Switch");
@@ -132,7 +132,7 @@ struct RSModule : Module {
         xi = -1.f;
         buffer_y.clear();
         buffer_x.clear();
-        setWheelsPositions();
+        setwellsPositions();
 
     }
 
@@ -151,8 +151,8 @@ struct RSModule : Module {
     }
     // Fonction de filtrage
     float getFilteredSignal() {
-        int N = (int)params[DYNAMIC_WHEEL_NUM].getValue();
-        float XB = params[DYNAMIC_WHEEL_POS].getValue();
+        int N = (int)params[DYNAMIC_well_NUM].getValue();
+        float XB = params[DYNAMIC_well_POS].getValue();
         float threshold = params[STATIC_THRESHOLD].getValue();
         float signal = inputs[INPUT_SIGNAL].getVoltage();
         float noise = inputs[INPUT_NOISE].getVoltage();
@@ -161,8 +161,8 @@ struct RSModule : Module {
         if (inputs[STATIC_MOD_INPUT].isConnected()) {
             threshold += inputs[STATIC_MOD_INPUT].getVoltage() * params[STATIC_MOD_PARAM].getValue();
         }
-        if (inputs[DYNAMIC_WHEEL_POS_MOD_INPUT].isConnected()) {
-            XB += inputs[DYNAMIC_WHEEL_POS_MOD_INPUT].getVoltage() * params[DYNAMIC_WHEEL_POS_MOD_PARAM].getValue();
+        if (inputs[DYNAMIC_well_POS_MOD_INPUT].isConnected()) {
+            XB += inputs[DYNAMIC_well_POS_MOD_INPUT].getVoltage() * params[DYNAMIC_well_POS_MOD_PARAM].getValue();
         }
         if (inputs[DYNAMIC_SYSTEM_TIME_MOD_INPUT].isConnected()) {
            if(params[DYNAMIC_SYSTEM_TIME_MOD_PARAM].getValue() > 1.f)
@@ -195,25 +195,25 @@ struct RSModule : Module {
         return filtred_signal;
     }
 
-    // wheels positions 
-    void setWheelsPositions() {
-        int N = (int)params[DYNAMIC_WHEEL_NUM].getValue();
-        float XB = params[DYNAMIC_WHEEL_POS].getValue();
+    // wells positions 
+    void setwellsPositions() {
+        int N = (int)params[DYNAMIC_well_NUM].getValue();
+        float XB = params[DYNAMIC_well_POS].getValue();
         float L = 2.0f * XB;
-        WheelsPosition.resize(N+1);
+        wellsPosition.resize(N+1);
 
         std::vector<float> x0_list(N);
         for (int i = 0; i < N; ++i)
-            WheelsPosition[i] = (i - (N - 1) / 2.0f) * L;
+            wellsPosition[i] = (i - (N - 1) / 2.0f) * L;
        
     }
-    // wheel number
-    int getCurrentWheelNum(float v) {
-        float XB = params[DYNAMIC_WHEEL_POS].getValue();
+    // well number
+    int getCurrentwellNum(float v) {
+        float XB = params[DYNAMIC_well_POS].getValue();
         float min_diff = std::numeric_limits<float>::max();
 
-        for (int i = 0; i < (int)WheelsPosition.size(); ++i) {
-            float diff = fabs(WheelsPosition[i] - v);
+        for (int i = 0; i < (int)wellsPosition.size(); ++i) {
+            float diff = fabs(wellsPosition[i] - v);
             if (diff <= 2.f * XB && diff < min_diff) {
                 min_diff = diff;
                 return i;
@@ -236,7 +236,7 @@ struct RSModule : Module {
      
         float v_oct = 0.f;
         updateSwitches();
-        setWheelsPositions();
+        setwellsPositions();
 
         filtred_signal = getFilteredSignal();
 
@@ -250,8 +250,8 @@ struct RSModule : Module {
         if(current_filter == 3){
 
             if((time - lastNoteTime) >= noteInterval){
-                current_wheel_num = getCurrentWheelNum(filtred_signal);
-                closestWell = current_wheel_num;
+                current_well_num = getCurrentwellNum(filtred_signal);
+                closestWell = current_well_num;
                 lastNoteTime = time;
                 outputs[GATE_OUTPUT].setVoltage(0.f);
                 
@@ -306,7 +306,7 @@ struct GraphDisplay : Widget {
 
     float getFiltreProfil(float x) {
         float threshold = module->params[RSModule::STATIC_THRESHOLD].getValue();
-        float XB = module->params[RSModule::DYNAMIC_WHEEL_POS].getValue();
+        float XB = module->params[RSModule::DYNAMIC_well_POS].getValue();
         int current_filter = module->current_filter;
 
         if (current_filter == 1) {
@@ -314,7 +314,7 @@ struct GraphDisplay : Widget {
         } else if (current_filter == 2) {
             return rubber(x, threshold);
         } else if (current_filter == 3) {
-            return multi_well_potential(x, module->params[RSModule::DYNAMIC_WHEEL_NUM].getValue(), XB);
+            return multi_well_potential(x, module->params[RSModule::DYNAMIC_well_NUM].getValue(), XB);
         }
         return 0.f;
     }
@@ -323,10 +323,10 @@ struct GraphDisplay : Widget {
         if (!module) return;
 
         float threshold = module->params[RSModule::STATIC_THRESHOLD].getValue();
-        float XB = module->params[RSModule::DYNAMIC_WHEEL_POS].getValue();
+        float XB = module->params[RSModule::DYNAMIC_well_POS].getValue();
         float gain = module->params[RSModule::GAIN_PARAM].getValue();
         float time = module->params[RSModule::TIME_PARAM].getValue();
-        int Num = (int)module->params[RSModule::DYNAMIC_WHEEL_NUM].getValue();
+        int Num = (int)module->params[RSModule::DYNAMIC_well_NUM].getValue();
 
         float W = size.x;
         float H = size.y;
@@ -430,13 +430,13 @@ struct RSModuleWidget : ModuleWidget {
         addParam(createParamCentered<Trimpot>(mm2px(Vec(34.300, 84.738)), module, RSModule::STATIC_MOD_PARAM));
         
         // Potentiomètres de contrôle (section Bistable)
-        addParam(createParamCentered<RoundHugeBlackKnob>(mm2px(Vec(70.801, 68.711)), module, RSModule::DYNAMIC_WHEEL_NUM));
+        addParam(createParamCentered<RoundHugeBlackKnob>(mm2px(Vec(70.801, 68.711)), module, RSModule::DYNAMIC_well_NUM));
         addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(49.68, 67.983)), module, RSModule::DYNAMIC_SYSTEM_TIME));
         addInput(createInputCentered<PJ301MPort>(mm2px(Vec(49.68, 85.144)), module, RSModule::DYNAMIC_SYSTEM_TIME_MOD_INPUT));
         addParam(createParamCentered<Trimpot>(mm2px(Vec(49.68, 96.933)), module, RSModule::DYNAMIC_SYSTEM_TIME_MOD_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(94.201, 69.305)), module, RSModule::DYNAMIC_WHEEL_POS));
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(94.201, 84.062)), module, RSModule::DYNAMIC_WHEEL_POS_MOD_INPUT));
-        addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(94.201, 95.245)), module, RSModule::DYNAMIC_WHEEL_POS_MOD_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(94.201, 69.305)), module, RSModule::DYNAMIC_well_POS));
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(94.201, 84.062)), module, RSModule::DYNAMIC_well_POS_MOD_INPUT));
+        addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(94.201, 95.245)), module, RSModule::DYNAMIC_well_POS_MOD_PARAM));
         addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(72.585, 91.441)), module, RSModule::NOTE_RATE));
 
         // Entrées
