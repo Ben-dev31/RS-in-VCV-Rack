@@ -42,7 +42,7 @@ struct RSModule : Module {
 
     std::vector<float> wellsPosition;
     // MIDI note list 
-    std::vector<int> midiNotes = {60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77 };
+    std::vector<int> midiNotes = {60, 62, 72,64, 65, 67, 69, 71, 72, 74, 76, 77 };
 
     //MIDI note -> voltage conversion
     float midiToVolts(int note) {
@@ -68,6 +68,7 @@ struct RSModule : Module {
         SWITCH_BISTABLE,
         SWITCH_DIODE1,
         SWITCH_DIODE2,
+        MODE_PARAM,
         PARAMS_LEN
     };
 
@@ -101,12 +102,11 @@ struct RSModule : Module {
         configParam(TIME_PARAM, 2.f, 100.f, 18.f, "Time scaling");
         configParam(GAIN_PARAM, 10.f, 100.f, 20.f, "Gain");
         configParam(STATIC_THRESHOLD, 0.f, 10.f, 1.f, "Static Threshold");
-        configInput(STATIC_MOD_INPUT, "Static Modulation Input");
         configParam(STATIC_MOD_PARAM, 0.f, 1.f, 0.f, "Static Modulation Parameter");
         configParam(DYNAMIC_well_NUM, 1.f, 16.f, 1.f, "Dynamic well Number");
         configParam(DYNAMIC_SYSTEM_TIME, 0.1f, 1000.f, 10.f, "Dynamic System Time");
         configInput(DYNAMIC_SYSTEM_TIME_MOD_INPUT, "Dynamic System Time Modulation Input");
-        configParam(DYNAMIC_SYSTEM_TIME_MOD_PARAM, 0.f, 1.f, 0.f, "Dynamic System Time Modulation Parameter");
+        configParam(DYNAMIC_SYSTEM_TIME_MOD_PARAM, 0.f, 1e-5f, 0.f, "Dynamic System Time Modulation Parameter");
         configParam(DYNAMIC_well_POS, 0.1f, 10.f, 1.f, "Dynamic well Position");
         configInput(DYNAMIC_well_POS_MOD_INPUT, "Dynamic well Position Modulation Input");
         configParam(DYNAMIC_well_POS_MOD_PARAM, 0.f, 1.f, 0.f, "Dynamic well Position Modulation Parameter");
@@ -114,9 +114,13 @@ struct RSModule : Module {
         configParam(SWITCH_BISTABLE, 0.f, 1.f, 0.f, "Bistable Switch");
         configParam(SWITCH_DIODE1, 0.f, 1.f, 0.f, "Diode 1 Switch");
         configParam(SWITCH_DIODE2, 0.f, 1.f, 0.f, "Diode 2 Switch");
+        configParam(MODE_PARAM, 0.f, 1.f, 0.f, "Mode Switch (Normal/Rate) Mode");
+
         configOutput(GATE_OUTPUT, "Gate Output");
         configOutput(VOCT_OUTPUT, "V/oct Output");
+        configOutput(OUTPUT, "Filtered Output");
 
+        configInput(STATIC_MOD_INPUT, "Static Modulation Input");
         configInput(INPUT_NOISE, "Noise Input");
         configInput(INPUT_SIGNAL, "Signal Input");
         configInput(INPUT_GATE, "Gate Modulation Input");
@@ -132,6 +136,9 @@ struct RSModule : Module {
         xi = -1.f;
         buffer_y.clear();
         buffer_x.clear();
+        time = 0.f;
+        lastNoteTime = 0.2f;
+       
         setwellsPositions();
 
     }
@@ -159,17 +166,19 @@ struct RSModule : Module {
         float tau = 1.f / params[DYNAMIC_SYSTEM_TIME].getValue();
 
         if (inputs[STATIC_MOD_INPUT].isConnected()) {
-            threshold += inputs[STATIC_MOD_INPUT].getVoltage() * params[STATIC_MOD_PARAM].getValue();
+            float static_mod = inputs[STATIC_MOD_INPUT].getVoltage();
+            static_mod = fabs(static_mod) >= 1.f ? 1.f : static_mod;
+            threshold += static_mod * params[STATIC_MOD_PARAM].getValue();
         }
         if (inputs[DYNAMIC_well_POS_MOD_INPUT].isConnected()) {
-            XB += inputs[DYNAMIC_well_POS_MOD_INPUT].getVoltage() * params[DYNAMIC_well_POS_MOD_PARAM].getValue();
+            float dynamic_mod = inputs[DYNAMIC_well_POS_MOD_INPUT].getVoltage();
+            dynamic_mod = fabs(dynamic_mod) >= 1.f ? 1.f : dynamic_mod;
+            XB += dynamic_mod * params[DYNAMIC_well_POS_MOD_PARAM].getValue();
         }
         if (inputs[DYNAMIC_SYSTEM_TIME_MOD_INPUT].isConnected()) {
-           if(params[DYNAMIC_SYSTEM_TIME_MOD_PARAM].getValue() > 1.f)
-               tau +=  params[DYNAMIC_SYSTEM_TIME_MOD_PARAM].getValue();
-            else{
-                tau += fabs(inputs[DYNAMIC_SYSTEM_TIME_MOD_INPUT].getVoltage()) * params[DYNAMIC_SYSTEM_TIME_MOD_PARAM].getValue();
-            }
+            float dynamic_mod = inputs[DYNAMIC_SYSTEM_TIME_MOD_INPUT].getVoltage();
+            dynamic_mod = fabs(dynamic_mod) >= 1.f ? 1.f : dynamic_mod;
+            tau += dynamic_mod * params[DYNAMIC_SYSTEM_TIME_MOD_PARAM].getValue();
             
         }
 
@@ -214,7 +223,7 @@ struct RSModule : Module {
 
         for (int i = 0; i < (int)wellsPosition.size(); ++i) {
             float diff = fabs(wellsPosition[i] - v);
-            if (diff <= 2.f * XB && diff < min_diff) {
+            if (diff <= XB && diff < min_diff) {
                 min_diff = diff;
                 return i;
             }
@@ -251,9 +260,15 @@ struct RSModule : Module {
 
             if((time - lastNoteTime) >= noteInterval){
                 current_well_num = getCurrentwellNum(filtred_signal);
-                closestWell = current_well_num;
+                if(current_well_num == closestWell) {
+                    outputs[GATE_OUTPUT].setVoltage(10.f);
+                } else {
+                    outputs[GATE_OUTPUT].setVoltage(0.f);
+                    closestWell = current_well_num;
+                }
+                
                 lastNoteTime = time;
-                outputs[GATE_OUTPUT].setVoltage(0.f);
+                //outputs[GATE_OUTPUT].setVoltage(0.f);
                 
             }else{
                 outputs[GATE_OUTPUT].setVoltage(10.f);
@@ -298,6 +313,12 @@ struct GraphDisplay : Widget {
     Vec position;
     Vec size;
 
+    float rate = 1.f; // Taux de rafraîchissement du graphique
+    float lastUpdateTime = 0.f;
+
+    float lcy = 0.f; // Position y du cercle de la position max
+    float lcx = 0.f; // Position x du cercle de la position max
+
     GraphDisplay(RSModule* module, Vec pos, Vec size)
         : module(module), position(pos), size(size) {
         this->box.pos = pos;
@@ -308,6 +329,8 @@ struct GraphDisplay : Widget {
         float threshold = module->params[RSModule::STATIC_THRESHOLD].getValue();
         float XB = module->params[RSModule::DYNAMIC_well_POS].getValue();
         int current_filter = module->current_filter;
+
+        
 
         if (current_filter == 1) {
             return diode(x, threshold);
@@ -370,23 +393,50 @@ struct GraphDisplay : Widget {
         nvgStroke(args.vg);
 
         // Cercle pour la position max
-        bool bistable_enabled = (module->current_filter == 3);
-        float cx = bistable_enabled? Max(module->buffer_y): Max(module->buffer_x);
+        
+        float mode = module->params[RSModule::MODE_PARAM].getValue();
+        if (mode > 0.5f && module->current_filter == 3) {
+            if( (module->time - lastUpdateTime) >= module->params[RSModule::NOTE_RATE].getValue()) {
+            
+            
+                bool bistable_enabled = (module->current_filter == 3);
+                float cx = bistable_enabled? Max(module->buffer_y): Max(module->buffer_x);
 
-        //std::cout <<bistable_enabled<< " cx: " << cx << "   bx: "<<Max(module->buffer_x)<<"  by: "<<Max(module->buffer_y)<< std::endl;
+                //std::cout <<bistable_enabled<< " cx: " << cx << "   bx: "<<Max(module->buffer_x)<<"  by: "<<Max(module->buffer_y)<< std::endl;
 
-       
-        float cy = getFiltreProfil(cx);
-       
-        cx = x_center + cx * time;
-        cy = y_center - cy * gain;
+            
+                float cy = getFiltreProfil(cx);
+            
+                lcx = x_center + cx * time;
+                lcy = y_center - cy * gain;
 
-        if ((cy <= (box.pos[1] - H / 4 + H) && cy >= box.pos[1] - H / 4) ||
-            (cx <= (box.pos[0] - W / 4 + W) && cx >= box.pos[0] - W / 4)) {
-            nvgBeginPath(args.vg);
-            nvgFillColor(args.vg, nvgRGB(0, 0, 255));
-            nvgCircle(args.vg, cx, cy, 4.0);
-            nvgFill(args.vg);
+                
+                lastUpdateTime = module->time;
+            }else{
+                if ((lcy <= (box.pos[1] - H / 4 + H) && lcy >= box.pos[1] - H / 4) ||
+                    (lcx <= (box.pos[0] - W / 4 + W) && lcx >= box.pos[0] - W / 4)) {
+                    nvgBeginPath(args.vg);
+                    nvgFillColor(args.vg, nvgRGB(0, 0, 255));
+                    nvgCircle(args.vg, lcx, lcy, 4.0);
+                    nvgFill(args.vg);
+                }
+            }
+        } else {
+            bool bistable_enabled = (module->current_filter == 3);
+            float cx = bistable_enabled? Max(module->buffer_y): Max(module->buffer_x);
+
+        
+            float cy = getFiltreProfil(cx);
+        
+            lcx = x_center + cx * time;
+            lcy = y_center - cy * gain;
+                if ((lcy <= (box.pos[1] - H / 4 + H) && lcy >= box.pos[1] - H / 4) ||
+                (lcx <= (box.pos[0] - W / 4 + W) && lcx >= box.pos[0] - W / 4)) {
+                nvgBeginPath(args.vg);
+                nvgFillColor(args.vg, nvgRGB(0, 0, 255));
+                nvgCircle(args.vg, lcx, lcy, 4.0);
+                nvgFill(args.vg);
+            }
         }
     }
 };
@@ -436,8 +486,9 @@ struct RSModuleWidget : ModuleWidget {
         addParam(createParamCentered<Trimpot>(mm2px(Vec(49.68, 96.933)), module, RSModule::DYNAMIC_SYSTEM_TIME_MOD_PARAM));
         addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(94.201, 69.305)), module, RSModule::DYNAMIC_well_POS));
         addInput(createInputCentered<PJ301MPort>(mm2px(Vec(94.201, 84.062)), module, RSModule::DYNAMIC_well_POS_MOD_INPUT));
-        addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(94.201, 95.245)), module, RSModule::DYNAMIC_well_POS_MOD_PARAM));
+        addParam(createParamCentered<Trimpot>(mm2px(Vec(94.201, 95.245)), module, RSModule::DYNAMIC_well_POS_MOD_PARAM));
         addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(72.585, 91.441)), module, RSModule::NOTE_RATE));
+        addParam(createParamCentered<CKSS>(mm2px(Vec(35.816, 58.4675)), module, RSModule::MODE_PARAM));
 
         // Entrées
         addInput(createInputCentered<PJ301MPort>(mm2px(Vec(7.36, 114.64)), module, RSModule::INPUT_NOISE));

@@ -1,3 +1,86 @@
+# Module VCV Rack : Résonance Stochastique
+
+## 🎯 Objectif
+
+Ce module simule un système multi-puits inspiré du phénomène de **résonance stochastique**, pour créer des **notes musicales aléatoires mais contrôlées**. Chaque changement de puits déclenche une note différente, envoyée en tension via une sortie 1V/oct pour piloter un oscillateur (VCO).
+
+---
+
+## ⚙️ Fonctionnalités
+
+- **Détection des changements d’état** dans un potentiel bistable ou multi-puits.
+- **Association d'une note musicale** à chaque puits détecté.
+- **Sortie de tension 1V/octave** compatible avec les standards VCV Rack.
+- **Contrôle du rythme** des notes (durée minimale entre deux changements).
+- **Affichage graphique** du potentiel et de la position du système.
+- **Ajout de deux systèmes** à seuil
+
+---
+
+## 🎛️ Interface utilisateur
+
+- `SIGNAL` : entrée du signal (bruité ou non).
+- `NOISE` : entrée du bruit.
+- `V/OCT` : sortie en tension (1V/oct) correspondant à une note.
+- `GATE` : sortie de la fenètre de la note.
+- `OUTPUT` : Sortie du signal filtré 
+- `RATE` : durée minimale entre deux notes jouées.
+- `THRESHOLD` : Paramètre de seuil des filtres à seul avec une entrée de modulation.
+- `N` : Paramètre de réglage du nombre de puits.
+- `Xb` : Profondeur des puits.
+- `TAU` : Réactivité du filtre.
+- `GRAPH DISPLAY` : affiche le potentiel bistable/multi-puits et la trajectoire du système.
+- `SCALE X` : Mise en échelle sur l'axe horizontal
+- `SCALE Y` : Mise en échelle sur l'axe vertical
+- `Switch (N, R)` : Basculer entre une affichage temps réel (N) et une affichage selon la note jouée (R) (fonctionne uniquement pour le filtre 3)
+
+
+## Module RS 
+![Le logo de Framasoft](./images/RS%20module.png "Module principale ")
+
+![Le logo de Framasoft](./images/filtre%201.png   "Filtre diode ")
+
+![Le logo de Framasoft](./images/filtre%202.png "Filtre double diode ")
+
+![Le logo de Framasoft](./images/filtre%203.png "Filtre dynamique à puits de potentiel ")
+---
+
+## 🧠 Fonctionnement interne
+
+1. **Intégration d'un signal bruité** dans un système non linéaire (à seuil ou à potentiel).
+2. **Détection de franchissement de seuils** correspondant aux minima du potentiel.
+
+3. **Contrôle de la durée** pour éviter les transitions trop rapides.
+
+---
+
+## 🎵 Notes musicales
+
+Chaque puits est mappé à une note :
+- Par exemple : puits gauche → Do, centre → Mi, droite → Sol.
+- Notes envoyées en tension : `note = baseNote + décalage`, convertie en volt (1V/oct).
+
+
+---
+
+## 💡 Idées artistiques
+
+- Utiliser comme **séquenceur probabiliste**, contrôlé par le bruit.
+- Créer des **textures musicales dynamiques** avec une structure cachée.
+- Produire des **événements rythmiques liés à la dynamique stochastique**.
+
+---
+## Modules 
+
+![Le logo de Framasoft](./images/noise%20module.png "Module de bruit  ")
+
+![Le logo de Framasoft](./images/compressor.png "Module pour la compression d'amplitude ")
+
+
+
+
+
+
 # Tutoriel VCV Rack
 
 ## Installation de VCV Rack

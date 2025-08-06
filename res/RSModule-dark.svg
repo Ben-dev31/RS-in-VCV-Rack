@@ -14,6 +14,7 @@
    inkscape:export-ydpi="96"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <sodipodi:namedview
@@ -28,7 +29,7 @@
      inkscape:document-units="mm"
      inkscape:zoom="2.01"
      inkscape:cx="187.31343"
-     inkscape:cy="322.1393"
+     inkscape:cy="242.0398"
      inkscape:window-width="1850"
      inkscape:window-height="1016"
      inkscape:window-x="70"
@@ -49,6 +50,18 @@
   <defs
      id="defs1">
     <linearGradient
+       id="linearGradient20"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#f9f9f9;stop-opacity:0;"
+         offset="0"
+         id="stop20" />
+      <stop
+         style="stop-color:#f9f9f9;stop-opacity:0;"
+         offset="1"
+         id="stop21" />
+    </linearGradient>
+    <linearGradient
        id="swatch13"
        inkscape:swatch="solid">
       <stop
@@ -64,6 +77,15 @@
          offset="0"
          id="stop12" />
     </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient20"
+       id="linearGradient21"
+       x1="143.63063"
+       y1="138.70461"
+       x2="155.14468"
+       y2="138.70461"
+       gradientUnits="userSpaceOnUse" />
   </defs>
   <g
      inkscape:label="Layer 1"
@@ -594,6 +616,24 @@
          id="text2"
          style="font-weight:bold;font-size:4.25207px;line-height:1.5;-inkscape-font-specification:'sans-serif Bold';text-align:center;letter-spacing:0.265754px;text-anchor:middle;fill:#f9f9f9;stroke:#ffffff;stroke-width:0;stroke-linecap:square;stroke-linejoin:bevel;paint-order:fill markers stroke"
          aria-label="RATE" />
+      <rect
+         style="fill:url(#linearGradient21);stroke:#ffffff;stroke-width:0.20088528;stroke-linecap:square;stroke-linejoin:bevel;paint-order:fill markers stroke;fill-opacity:0;stroke-opacity:1;stroke-dasharray:none"
+         id="rect4"
+         width="11.514054"
+         height="7.9477963"
+         x="143.63063"
+         y="134.73071"
+         ry="1.125005" />
+      <path
+         d="m 158.27021,141.91381 h 1.43275 l 1.80925,2.35516 v -2.35516 h 1.21617 v 3.43383 h -1.43274 l -1.80926,-2.35515 v 2.35515 h -1.21617 z"
+         id="text19"
+         style="font-weight:bold;font-size:5.66943px;line-height:1.5;-inkscape-font-specification:'sans-serif Bold';text-align:center;letter-spacing:0.265754px;text-anchor:middle;fill:#f9f9f9;stroke:#ffffff;stroke-width:0;stroke-linecap:square;stroke-linejoin:bevel;paint-order:fill markers stroke"
+         aria-label="N" />
+      <path
+         d="m 160.63934,132.67124 q 0.40316,0 0.57643,-0.10349 0.17659,-0.1035 0.17659,-0.3404 0,-0.23459 -0.17659,-0.33579 -0.17327,-0.1012 -0.57643,-0.1012 h -0.53978 v 0.88088 z m -0.53978,0.6118 v 1.29947 h -1.28281 v -3.43384 h 1.9592 q 0.98293,0 1.43941,0.2277 0.45981,0.2277 0.45981,0.71988 0,0.3404 -0.23989,0.55889 -0.23657,0.2185 -0.71639,0.322 0.26324,0.0414 0.46981,0.18859 0.20993,0.14491 0.42317,0.4416 l 0.69638,0.97518 h -1.36611 l -0.60642,-0.85329 q -0.18325,-0.25759 -0.37318,-0.35188 -0.18659,-0.0943 -0.4998,-0.0943 z"
+         id="text20"
+         style="font-weight:bold;font-size:5.66945px;line-height:1.5;-inkscape-font-specification:'sans-serif Bold';text-align:center;letter-spacing:0.265754px;text-anchor:middle;fill:#f9f9f9;stroke:#ffffff;stroke-width:0;stroke-linecap:square;stroke-linejoin:bevel;paint-order:fill markers stroke"
+         aria-label="R" />
     </g>
   </g>
 </svg>

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Module VCV Rack : Résonance Stochastique</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f8f9fa;
+      color: #222;
+      margin: 0;
+      padding: 0 0 3em 0;
+      line-height: 1.7;
+    }
+    .container {
+      max-width: 70%;
+      margin: 2em auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px #0001;
+      padding: 2em 2.5em;
+    }
+    h1, h2, h3, h4 {
+      color: #2a3a5a;
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+    }
+    h1 { font-size: 2.2em; }
+    h2 { font-size: 1.5em; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.2em;}
+    h3 { font-size: 1.2em; }
+    hr { border: none; border-top: 1px solid #e0e0e0; margin: 2em 0; }
+    ul, ol { margin: 0 0 1em 2em; }
+    code, pre {
+      background: #f3f3f3;
+      color: #c7254e;
+      border-radius: 4px;
+      font-family: 'Fira Mono', 'Consolas', monospace;
+      font-size: 0.98em;
+      padding: 0.1em 0.3em;
+    }
+    pre {
+      padding: 1em;
+      overflow-x: auto;
+      margin: 1em 0;
+      background: #f6f8fa;
+      color: #222;
+      border-left: 4px solid #2a3a5a33;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1em 0;
+      background: #fafbfc;
+    }
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 0.5em 0.8em;
+      text-align: left;
+    }
+    th {
+      background: #f0f4f8;
+      color: #2a3a5a;
+    }
+    img {
+      max-width: 100%;
+      border-radius: 6px;
+      margin: 1em 0;
+      box-shadow: 0 1px 6px #0002;
+    }
+    .images-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5em;
+      justify-content: flex-start;
+      align-items: flex-start;
+    }
+    .images-container p {
+      margin: 0;
+      flex: 1 1 200px;
+      text-align: center;
+    }
+    a {
+      color: #0077cc;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .note {
+      background: #e7f5ff;
+      border-left: 4px solid #339af0;
+      padding: 0.7em 1em;
+      margin: 1em 0;
+      border-radius: 4px;
+      color: #1c3d5a;
+    }
+    .emoji {
+      font-size: 1.2em;
+      margin-right: 0.3em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Module VCV Rack : Résonance Stochastique</h1>
+
+    <h2><span class="emoji">🎯</span> Objectif</h2>
+    <p>
+      Ce module simule un système multi-puits inspiré du phénomène de <strong>résonance stochastique</strong>, pour créer des <strong>notes musicales aléatoires mais contrôlées</strong>. Chaque changement de puits déclenche une note différente, envoyée en tension via une sortie 1V/oct pour piloter un oscillateur (VCO).
+    </p>
+    <hr>
+
+    <h2><span class="emoji">⚙️</span> Fonctionnalités</h2>
+    <ul>
+      <li><strong>Détection des changements d’état</strong> dans un potentiel bistable ou multi-puits.</li>
+      <li><strong>Association d'une note musicale</strong> à chaque puits détecté.</li>
+      <li><strong>Sortie de tension 1V/octave</strong> compatible avec les standards VCV Rack.</li>
+      <li><strong>Contrôle du rythme</strong> des notes (durée minimale entre deux changements).</li>
+      <li><strong>Affichage graphique</strong> du potentiel et de la position du système.</li>
+      <li><strong>Ajout de deux systèmes</strong> à seuil</li>
+    </ul>
+    <hr>
+
+    <h2><span class="emoji">🎛️</span> Interface utilisateur</h2>
+    <ul>
+      <li><code>SIGNAL</code> : entrée du signal (bruité ou non).</li>
+      <li><code>NOISE</code> : entrée du bruit.</li>
+      <li><code>V/OCT</code> : sortie en tension (1V/oct) correspondant à une note.</li>
+      <li><code>GATE</code> : sortie de la fenêtre de la note.</li>
+      <li><code>OUTPUT</code> : Sortie du signal filtré</li>
+      <li><code>RATE</code> : durée minimale entre deux notes jouées.</li>
+      <li><code>THRESHOLD</code> : Paramètre de seuil des filtres à seuil avec une entrée de modulation.</li>
+      <li><code>N</code> : Paramètre de réglage du nombre de puits.</li>
+      <li><code>Xb</code> : Profondeur des puits.</li>
+      <li><code>TAU</code> : Réactivité du filtre.</li>
+      <li><code>GRAPH DISPLAY</code> : affiche le potentiel bistable/multi-puits et la trajectoire du système.</li>
+      <li><code>SCALE X</code> : Mise en échelle sur l'axe horizontal</li>
+      <li><code>SCALE Y</code> : Mise en échelle sur l'axe vertical</li>
+      <li><code>Switch (N, R)</code> : Basculer entre affichage temps réel (N) et affichage selon la note jouée (R) (fonctionne uniquement pour le filtre 3)</li>
+    </ul>
+    <div>
+        <img src="./images/RS%20module.png" alt="Interface utilisateur du module" title="Interface utilisateur du module">
+    </div>
+
+    <h2>Module RS</h2>
+    <div class="images-container">
+      <p><img src="./images/filtre%201.png" alt="Filtre diode" title="Filtre diode"></p>
+      <p><img src="./images/filtre%202.png" alt="Filtre double diode" title="Filtre double diode"></p>
+      <p><img src="./images/filtre%203.png" alt="Filtre dynamique à puits de potentiel" title="Filtre dynamique à puits de potentiel"></p>
+    </div>
+
+    <h2><span class="emoji">🧠</span> Fonctionnement interne</h2>
+    <ol>
+      <li><strong>Intégration d'un signal bruité</strong> dans un système non linéaire (à seuil ou à potentiel).</li>
+      <li><strong>Détection de franchissement de seuils</strong> correspondant aux minima du potentiel.</li>
+      <li><strong>Contrôle de la durée</strong> pour éviter les transitions trop rapides.</li>
+    </ol>
+    <hr>
+
+    <h2><span class="emoji">🎵</span> Notes musicales</h2>
+    <p>Chaque puits est mappé à une note :</p>
+    <ul>
+      <li>Par exemple : puits gauche → Do, centre → Mi, droite → Sol.</li>
+      <li>Notes envoyées en tension : <code>note = baseNote + décalage</code>, convertie en volt (1V/oct).</li>
+    </ul>
+    <hr>
+
+    <h2><span class="emoji">💡</span> Idées artistiques</h2>
+    <ul>
+      <li>Utiliser comme <strong>séquenceur probabiliste</strong>, contrôlé par le bruit.</li>
+      <li>Créer des <strong>textures musicales dynamiques</strong> avec une structure cachée.</li>
+      <li>Produire des <strong>événements rythmiques liés à la dynamique stochastique</strong>.</li>
+    </ul>
+    <hr>
+
+    <h2>Modules</h2>
+    <div class="images-container">
+      <p><img src="./images/noise%20module.png" alt="Module de bruit" title="Module de générateur de bruit"></p>
+      <p><img src="./images/compressor.png" alt="Module de compression" title="Module de compression d'amplitude"></p>
+    </div>
+
+    <h1>Tutoriel VCV Rack</h1>
+    <h2>Installation de VCV Rack</h2>
+    <h3>Sur Ubuntu</h3>
+    <ol>
+      <li>
+        <strong>Installer les dépendances nécessaires :</strong>
+        <pre><code>sudo apt install unzip git gdb curl cmake libx11-dev libglu1-mesa-dev \
+libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev zlib1g-dev \
+libasound2-dev libgtk2.0-dev libgtk-3-dev libjack-jackd2-dev jq zstd \
+libpulse-dev pkg-config
+</code></pre>
+      </li>
+      <li>
+        <strong>Cloner le dépôt de VCV Rack :</strong>
+        <pre><code>git clone https://github.com/VCVRack/Rack.git
+cd Rack
+</code></pre>
+      </li>
+      <li>
+        <strong>Initialiser les sous-modules :</strong>
+        <pre><code>git submodule update --init --recursive
+</code></pre>
+      </li>
+      <li>
+        <strong>Compiler VCV Rack :</strong>
+        <pre><code>make dep
+make
+make run  # Lance VCV Rack
+</code></pre>
+      </li>
+    </ol>
+    <hr>
+
+    <h2>Installation du SDK de VCV Rack</h2>
+    <h3>Option 1 : Cloner depuis GitHub</h3>
+    <pre><code>git clone https://github.com/VCVRack/Fundamental.git
+cd Fundamental
+git submodule update --init --recursive
+</code></pre>
+    <h3>Option 2 : Télécharger le SDK</h3>
+    <ul>
+      <li>Télécharger depuis ce lien :<br>
+        <a href="https://vcvrack.com/downloads/Rack-SDK-latest-lin-x64.zip">Rack SDK - version Linux x64</a>
+      </li>
+      <li>Décompresser le fichier ZIP.</li>
+      <li>Définir la variable d’environnement <code>RACK_DIR</code> :</li>
+      <pre><code>export RACK_DIR=/chemin/vers/le/dossier/dezippe
+</code></pre>
+    </ul>
+    <h3>Compilation</h3>
+    <pre><code>make dep
+make
+</code></pre>
+    <hr>
+
+    <h2>Développement d’un plugin</h2>
+    <h3>Définir le chemin du SDK dans <code>.bashrc</code></h3>
+    <ol>
+      <li>Ouvrir le fichier :
+        <pre><code>vim ~/.bashrc
+</code></pre>
+      </li>
+      <li>Ajouter à la fin du fichier :
+        <pre><code>export RACK_DIR=/chemin/vers/le/dossier/du/sdk
+</code></pre>
+      </li>
+      <li>Recharger la configuration :
+        <pre><code>source ~/.bashrc
+</code></pre>
+      </li>
+    </ol>
+    <hr>
+
+    <h3>Création d’un plugin à l’aide du template</h3>
+    <p>Utiliser l’outil <code>helper.py</code> :</p>
+    <pre><code>$RACK_DIR/helper.py createplugin MyPlugin
+</code></pre>
+    <ul>
+      <li>Remplacer <code>MyPlugin</code> par le nom de votre plugin.</li>
+      <li>Répondre aux questions posées.</li>
+    </ul>
+    <p>Cette commande crée un dossier <code>MyPlugin</code> avec la structure suivante :</p>
+    <pre><code>MyPlugin/
+├── res/          # Contiendra le fichier SVG (interface graphique)
+├── src/
+│   ├── plugin.cpp
+│   └── plugin.hpp
+├── Makefile
+└── plugin.json
+</code></pre>
+    <h3>Modifications nécessaires après génération :</h3>
+    <ul>
+      <li>
+        <strong>Décommenter</strong> la ligne suivante dans <code>plugin.cpp</code> :
+        <pre><code>p->addModel(modelMyModule);
+</code></pre>
+      </li>
+      <li>
+        <strong>Décommenter</strong> aussi cette ligne dans <code>plugin.hpp</code> :
+        <pre><code>extern Model* modelMyModule;
+</code></pre>
+      </li>
+      <li>Remplacer <code>MyModule</code> par le nom de votre Module.</li>
+    </ul>
+    <hr>
+
+    <h3>Ajouter un fichier SVG</h3>
+    <ul>
+      <li>Placer le fichier SVG dans le dossier <code>res/</code>.</li>
+      <li>Vérifier dans Inkscape (ou un autre éditeur) que les éléments graphiques sont bien nommés avec les bonnes couleurs.</li>
+      <li><strong>Param</strong>: red #ff0000</li>
+      <li><strong>Input</strong>: green #00ff00</li>
+      <li><strong>Output</strong>: blue #0000ff</li>
+      <li><strong>Light</strong>: magenta #ff00ff</li>
+      <li><strong>Custom widgets</strong>: yellow #ffff00</li>
+    </ul>
+    <hr>
+
+    <h2>Création de module</h2>
+    <pre><code>cd MyPlugin
+$RACK_DIR/helper.py createmodule MyModule res/MyModule.svg src/MyModule.cpp
+</code></pre>
+    <p>Cette commande va créer les fichiers cpp automatiquement en fonction des composants trouvés dans le svg.</p>
+
+    <h2>Compilation du plugin</h2>
+    <p>Dans le dossier du plugin :</p>
+    <pre><code>make install
+</code></pre>
+    <p>Puis lancer VCV Rack (le plugin sera disponible s’il est dans le bon dossier <code>plugins</code> ou <code>plugins-v2</code>).</p>
+
+    <h1>Les composants graphiques</h1>
+    <h3>Knobs (Potentiomètres)</h3>
+    <table>
+      <thead>
+        <tr><th>Nom du composant</th><th>Taille (px)</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>RoundHugeBlackKnob</code></td><td>38x38</td><td>Grosse molette noire, utile pour les paramètres principaux</td></tr>
+        <tr><td><code>RoundLargeBlackKnob</code></td><td>32x32</td><td>Molette de taille moyenne</td></tr>
+        <tr><td><code>RoundBlackKnob</code></td><td>25x25</td><td>Molette standard</td></tr>
+        <tr><td><code>RoundSmallBlackKnob</code></td><td>17x17</td><td>Petite molette, pour paramètres secondaires</td></tr>
+        <tr><td><code>Trimpot</code></td><td>9x9</td><td>Molette minuscule pour ajustements fins</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li>Base class : <code>SvgKnob</code></li>
+      <li>Méthode de création : <code>createParamCentered&lt;...&gt;()</code></li>
+    </ul>
+
+    <h3>Boutons (Buttons)</h3>
+    <table>
+      <thead>
+        <tr><th>Nom du composant</th><th>Taille (px)</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>LEDButton</code></td><td>15x15 env.</td><td>Bouton cliquable avec LED intégrée (toggle ou momentary)</td></tr>
+        <tr><td><code>CKD6</code></td><td>9x9</td><td>Petit switch carré (toggle)</td></tr>
+        <tr><td><code>CKSS</code></td><td>9x12</td><td>Interrupteur à deux positions</td></tr>
+        <tr><td><code>CKSSThree</code></td><td>9x12</td><td>Interrupteur à trois positions</td></tr>
+        <tr><td><code>MomentarySwitch</code></td><td>10x10 env.</td><td>Bouton poussoir temporaire</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li>Base class : <code>SvgSwitch</code></li>
+      <li>Méthode de création : <code>createParamCentered&lt;...&gt;()</code></li>
+    </ul>
+
+    <h3>Ports</h3>
+    <table>
+      <thead>
+        <tr><th>Nom du composant</th><th>Taille (px)</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>PJ301MPort</code></td><td>15x15</td><td>Port jack classique pour entrée ou sortie (CV, audio, gate)</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li>Base class : <code>SvgPort</code></li>
+      <li>Méthode de création : <code>createInputCentered&lt;...&gt;()</code> ou <code>createOutputCentered&lt;...&gt;()</code></li>
+    </ul>
+
+    <h3>LEDs (Lumières)</h3>
+    <table>
+      <thead>
+        <tr><th>Nom</th><th>Taille approx.</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>TinyLight</code></td><td>2x2</td><td>LED minuscule</td></tr>
+        <tr><td><code>SmallLight</code></td><td>5x5</td><td>LED standard</td></tr>
+        <tr><td><code>MediumLight</code></td><td>7x7</td><td>LED un peu plus grande</td></tr>
+        <tr><td><code>LargeLight</code></td><td>9x9</td><td>LED visible à distance</td></tr>
+        <tr><td><code>VeryLargeLight</code></td><td>11x11</td><td>LED très grande</td></tr>
+      </tbody>
+    </table>
+    <h4>Types de couleurs (template) :</h4>
+    <ul>
+      <li><code>RedLight</code></li>
+      <li><code>GreenLight</code></li>
+      <li><code>BlueLight</code></li>
+      <li><code>YellowLight</code></li>
+      <li><code>WhiteLight</code></li>
+      <li><code>OrangeLight</code></li>
+      <li><code>PurpleLight</code></li>
+      <li><code>CyanLight</code></li>
+      <li>Base class : <code>ModuleLightWidget</code></li>
+      <li>Méthode de création : <code>createLightCentered&lt;...&gt;()</code></li>
+    </ul>
+
+    <h3>Vis / Visuels divers</h3>
+    <table>
+      <thead>
+        <tr><th>Nom du composant</th><th>Taille (px)</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>ScrewSilver</code></td><td>7x7</td><td>Vis d'apparence argentée</td></tr>
+        <tr><td><code>ScrewBlack</code></td><td>7x7</td><td>Vis noire</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li>Base class : <code>Widget</code></li>
+      <li>Méthode de création : <code>createWidget&lt;...&gt;()</code></li>
+    </ul>
+
+    <h2>📦 Classes de base (héritage)</h2>
+    <table>
+      <thead>
+        <tr><th>Classe de base</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>SvgKnob</code></td><td>Base pour les knobs</td></tr>
+        <tr><td><code>SvgSwitch</code></td><td>Base pour les boutons/interrupteurs</td></tr>
+        <tr><td><code>SvgPort</code></td><td>Base pour les ports d'entrée/sortie</td></tr>
+        <tr><td><code>ModuleLightWidget</code></td><td>Base pour les LEDs</td></tr>
+        <tr><td><code>Widget</code></td><td>Base générique pour composants graphiques</td></tr>
+      </tbody>
+    </table>
+
+    <h2>🛠️ Exemple d'utilisation</h2>
+    <pre><code class="language-cpp">addParam(createParamCentered<RoundBlackKnob>(
+    mm2px(Vec(15.0, 40.0)), module, MyModule::PARAM_ID));
+
+addInput(createInputCentered<PJ301MPort>(
+    mm2px(Vec(5.0, 100.0)), module, MyModule::INPUT_ID));
+
+addOutput(createOutputCentered<PJ301MPort>(
+    mm2px(Vec(25.0, 100.0)), module, MyModule::OUTPUT_ID));
+
+addChild(createLightCentered<SmallLight<RedLight>>(
+    mm2px(Vec(15.0, 70.0)), module, MyModule::LIGHT_ID));
+</code></pre>
+
+    <h1>Ressources utiles</h1>
+    <ul>
+      <li><a href="https://vcvrack.com/manual/">Documentation officielle de VCV Rack</a></li>
+      <li><a href="https://github.com/VCVRack/VCV-Prototype">Exemples de plugins</a></li>
+    </ul>
+  </div>
+</body>
+</html>
