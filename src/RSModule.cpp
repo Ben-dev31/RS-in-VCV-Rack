@@ -42,7 +42,7 @@ struct RSModule : Module {
 
     std::vector<float> wellsPosition;
     // MIDI note list 
-    std::vector<int> midiNotes = {60, 62, 72,64, 65, 67, 69, 71, 72, 74, 76, 77 };
+    std::vector<int> midiNotes = {62, 64, 65, 67, 69, 71, 72, 74, 76, 77 };
 
     //MIDI note -> voltage conversion
     float midiToVolts(int note) {
@@ -279,6 +279,9 @@ struct RSModule : Module {
         
             v_oct = midiToVolts(midiNotes[closestWell]);
             outputs[VOCT_OUTPUT].setVoltage(v_oct);
+        }else{
+            outputs[GATE_OUTPUT].setVoltage(0.f);
+            closestWell = 0; // Réinitialisation pour les autres filtres
         }
         
 
@@ -413,8 +416,10 @@ struct GraphDisplay : Widget {
                 
                 lastUpdateTime = module->time;
             }else{
-                if ((lcy <= (box.pos[1] - H / 4 + H) && lcy >= box.pos[1] - H / 4) ||
-                    (lcx <= (box.pos[0] - W / 4 + W) && lcx >= box.pos[0] - W / 4)) {
+                /*
+                (lcy <= (box.pos[1] - H / 4 + H) && lcy >= box.pos[1] - H / 4) ||
+                    (lcx <= (box.pos[0] - W / 4 + W) && lcx >= box.pos[0] - W / 4) */
+                if (fabs(lcy )<= H && fabs(lcx) <= W) {
                     nvgBeginPath(args.vg);
                     nvgFillColor(args.vg, nvgRGB(0, 0, 255));
                     nvgCircle(args.vg, lcx, lcy, 4.0);
@@ -430,8 +435,7 @@ struct GraphDisplay : Widget {
         
             lcx = x_center + cx * time;
             lcy = y_center - cy * gain;
-                if ((lcy <= (box.pos[1] - H / 4 + H) && lcy >= box.pos[1] - H / 4) ||
-                (lcx <= (box.pos[0] - W / 4 + W) && lcx >= box.pos[0] - W / 4)) {
+            if (fabs(lcy) <= H && fabs(lcx) <= W){
                 nvgBeginPath(args.vg);
                 nvgFillColor(args.vg, nvgRGB(0, 0, 255));
                 nvgCircle(args.vg, lcx, lcy, 4.0);
